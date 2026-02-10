@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compras FPTI-PY — Gestión de Procesos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/styles.css">
+  <!-- SheetJS for Excel compatibility (optional) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- ============================================================
+     PRINT HEADER (only visible in @media print)
+     ============================================================ -->
+<div class="print-header">
+  <h1>PROCESOS DE COMPRAS — FPTI-PY</h1>
+  <div class="print-meta">
+    <span id="printTimestamp"></span> · <span id="printFilterInfo">Sin filtros</span>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- ============================================================
+       SIDEBAR
+       ============================================================ -->
+  <button class="sidebar-toggle" onclick="toggleSidebar()" aria-label="Menú">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <nav class="sidebar" role="navigation" aria-label="Menú principal">
+    <div class="sidebar-brand">
+      <div class="brand-icon">CP</div>
+      <div>
+        <div class="brand-text">COMPRAS FPTI-PY</div>
+        <div class="brand-sub">Gestión de Procesos</div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Principal</div>
+        <a class="sidebar-link active" href="#/" onclick="closeSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
+          Inicio / Índice
+        </a>
+        <button class="sidebar-link" onclick="showNewProcess(); closeSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+          Nuevo Proceso
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Datos</div>
+        <button class="sidebar-link" onclick="triggerImportJSON(); closeSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          Importar JSON
+        </button>
+        <button class="sidebar-link" onclick="exportJSON(); closeSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          Exportar JSON
+        </button>
+        <label class="sidebar-link" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Importar Excel
+          <input type="file" accept=".xlsx,.xls,.csv" id="fileImportExcel" style="display:none">
+        </label>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Imprimir</div>
+        <button class="sidebar-link" onclick="printSummary(); closeSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Imprimir Resumen
+        </button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Más</div>
+        <a class="sidebar-link" href="./pages/reportes.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Reportes
+        </a>
+        <a class="sidebar-link" href="./pages/configuracion.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Configuración
+        </a>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      FPTI-PY · DAF · v2.0
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       MAIN AREA
+       ============================================================ -->
+  <div class="main-area">
+
+    <!-- Header Bar -->
+    <header class="app-header">
+      <div id="headerTitle" class="header-title">Índice de Procesos</div>
+      <div class="header-actions">
+        <div class="save-pill idle" id="savePill">
+          <span class="dot"></span>
+          <span id="savePillText">IndexedDB</span>
+        </div>
+        <button class="btn btn-sm no-print" onclick="triggerImportJSON()" title="Importar JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span class="lbl">Importar</span>
+        </button>
+        <button class="btn btn-sm no-print" onclick="exportJSON()" title="Exportar JSON">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <span class="lbl">Exportar</span>
+        </button>
+        <button class="btn btn-primary btn-sm no-print" onclick="showNewProcess()" title="Nuevo proceso">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span class="lbl">Nuevo</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content Area (scrollable) -->
+    <div class="content-scroll">
+
+      <!-- ======== INDEX VIEW ======== -->
+      <div id="viewIndex" class="fade-in">
+        <div class="stats-bar" id="statsBar"></div>
+        <div class="index-toolbar no-print">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input type="text" id="searchInput" placeholder="Buscar proceso, objeto, sigla…" oninput="renderIndex()" aria-label="Buscar">
+          </div>
+          <div class="filter-group">
+            <select id="filterTipo" onchange="renderIndex()" aria-label="Filtrar por tipo">
+              <option value="">Todos los tipos</option>
+              <option value="CLP">CLP</option>
+              <option value="CPP">CPP</option>
+            </select>
+            <select id="filterEstado" onchange="renderIndex()" aria-label="Filtrar por estado">
+              <option value="">Todos los estados</option>
+            </select>
+            <select id="filterSigla" onchange="renderIndex()" aria-label="Filtrar por sigla">
+              <option value="">Todas las siglas</option>
+            </select>
+            <button class="btn btn-sm" onclick="printSummary()" title="Imprimir resumen filtrado">
+              🖨 <span class="lbl">Imprimir</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:52px">Tipo</th>
+                <th style="width:105px" class="sortable" onclick="toggleSort('proceso')">Proceso ↕</th>
+                <th>Objeto del Proceso</th>
+                <th style="width:125px">Estado</th>
+                <th>Próximo Evento</th>
+                <th>Sigla / Proyecto</th>
+              </tr>
+            </thead>
+            <tbody id="indexBody"></tbody>
+          </table>
+          <div class="pagination" id="paginationBar"></div>
+        </div>
+      </div>
+
+      <!-- ======== DETAIL VIEW ======== -->
+      <div id="viewDetail" class="hidden fade-in"></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     AUTOSAVE INDICATOR (fixed, top-right)
+     ============================================================ -->
+<div class="autosave-indicator" id="autosaveIndicator">Guardado</div>
+
+<!-- ============================================================
+     TOAST CONTAINER
+     ============================================================ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ============================================================
+     MODAL
+     ============================================================ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- ============================================================
+     HIDDEN FILE INPUTS
+     ============================================================ -->
+<input type="file" accept=".json" id="fileImportJSON" style="display:none">
+
+<!-- ============================================================
+     APP JS (after DOM)
+     ============================================================ -->
+<script src="./assets/app.js"></script>
+
+</body>
+</html>
