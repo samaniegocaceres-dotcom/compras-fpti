@@ -647,7 +647,7 @@ async function init() {
   // If empty, try loading seed from data/data.json
   if (!allProcesses.length) {
     try {
-      const res = await fetch('./data/proceso_detalle.json');
+      const res = await fetch('./data/data.json');
       if (res.ok) {
         const seed = await res.json();
         if (Array.isArray(seed)) {
