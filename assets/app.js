@@ -12,59 +12,96 @@ import {
 
 'use strict';
 
-// ================================================================
-// 1. DATA STORE (IndexedDB)
-// ================================================================
-const DB_NAME = 'compras_fpti_v2';
-const DB_VER  = 1;
-const STORE   = 'procesos';
-let db = null;
-let allProcesses = [];
 
-function openDB() {
-  return new Promise((ok, fail) => {
-    const r = indexedDB.open(DB_NAME, DB_VER);
-    r.onupgradeneeded = e => {
-      const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE))
-        d.createObjectStore(STORE, { keyPath: 'id' });
-    };
-    r.onsuccess = e => { db = e.target.result; ok(); };
-    r.onerror   = e => fail(e);
-  });
-}
+// ================================================================
+// 1. DATA STORE (Firebase Realtime Database)
+// API COMPATIBLE con el resto de tu app (dbAll, dbPut, dbDel, dbClear)
+// ================================================================
+const STORE = 'procesos';      // conservamos tu nombre lógico
+let allProcesses = [];         // conservamos variable global
+
+// Obtiene TODOS los procesos (una sola vez)
 function dbAll() {
-  return new Promise((ok, fail) => {
-    const t = db.transaction(STORE, 'readonly');
-    const r = t.objectStore(STORE).getAll();
-    r.onsuccess = () => ok(r.result);
-    r.onerror   = () => fail(r.error);
+  return new Promise(async (ok, fail) => {
+    try {
+      const snap = await get(ref(db, STORE));
+      const obj = snap.val() || {};
+      // Convertimos diccionario => array
+      const list = Object.values(obj);
+      ok(list);
+    } catch (e) {
+      fail(e);
+    }
   });
 }
+
+// Inserta/Actualiza un proceso { id, ... }
 function dbPut(p) {
-  return new Promise((ok, fail) => {
-    const t = db.transaction(STORE, 'readwrite');
-    const r = t.objectStore(STORE).put(p);
-    r.onsuccess = () => ok();
-    r.onerror   = () => fail(r.error);
+  return new Promise(async (ok, fail) => {
+    try {
+      if (!p?.id) throw new Error('dbPut: falta p.id');
+      await set(ref(db, `${STORE}/${p.id}`), p);
+      ok();
+    } catch (e) { fail(e); }
   });
 }
+
+// Elimina un proceso por id
 function dbDel(id) {
-  return new Promise((ok, fail) => {
-    const t = db.transaction(STORE, 'readwrite');
-    const r = t.objectStore(STORE).delete(id);
-    r.onsuccess = () => ok();
-    r.onerror   = () => fail(r.error);
+  return new Promise(async (ok, fail) => {
+    try {
+      await remove(ref(db, `${STORE}/${id}`));
+      ok();
+    } catch (e) { fail(e); }
   });
 }
+
+// Borra TODO (usar con precaución: lo usa tu import para reemplazar datos)
 function dbClear() {
-  return new Promise((ok, fail) => {
-    const t = db.transaction(STORE, 'readwrite');
-    const r = t.objectStore(STORE).clear();
-    r.onsuccess = () => ok();
-    r.onerror   = () => fail(r.error);
+  return new Promise(async (ok, fail) => {
+    try {
+      await remove(ref(db, STORE));
+      ok();
+    } catch (e) { fail(e); }
   });
 }
+
+// === Suscripción en tiempo real ===
+// Llama a renderIndex() o renderDetail() cuando cambia algo en Firebase
+function subscribeRealtime() {
+  onValue(ref(db, STORE), (snap) => {
+    const obj = snap.val() || {};
+    allProcesses = Object.values(obj);
+
+    // Si estás en índice o detalle, re-renderizamos
+    try {
+      const h = window.location.hash || '#/';
+      if (h.startsWith('#/detail/')) {
+        const id = decodeURIComponent(h.replace('#/detail/', ''));
+        // Si el id ya no existe (lo borraron desde otra PC), volvemos al índice
+        if (!allProcesses.find(x => x.id === id)) {
+          navigate('#/');
+          renderIndex?.();
+          return;
+        }
+        renderDetail?.(id);
+      } else {
+        renderIndex?.();
+      }
+    } catch (e) {
+      console.warn('Render tras RT update', e);
+    }
+  });
+}
+
+// openDB ahora solo inicia la suscripción
+function openDB() {
+  return new Promise((ok) => {
+    subscribeRealtime();
+    ok();
+  });
+}
+
 
 // ================================================================
 // 2. MODEL
@@ -643,38 +680,32 @@ function closeSidebar() {
 }
 window.toggleSidebar = toggleSidebar; window.closeSidebar = closeSidebar;
 
+
 // ================================================================
-// 12. INIT
+// 12. INIT (versión Firebase)
 // ================================================================
 async function init() {
+  // Suscripción en tiempo real
   await openDB();
-  allProcesses = await dbAll();
 
-  // If empty, try loading seed from data/data.json
-  if (!allProcesses.length) {
-    try {
-      const res = await fetch('./data.json',{ cache: 'no-store' })
-      if (res.ok) {
-        const seed = await res.json();
-        if (Array.isArray(seed)) {
-          for (const item of seed) await dbPut(makeProcess(item));
-          allProcesses = await dbAll();
-          toast(`Cargados ${allProcesses.length} procesos desde data.json`, 'info');
-        }
-      }
-    } catch (e) {
-      console.log('No se pudo cargar data.json (normal si se abre con file://). Importá manualmente.');
-    }
+  // Ya no hacemos seed desde ./data/data.json
+  // dbAll() no es imprescindible aquí porque onValue ya actualizará allProcesses,
+  // pero si querés cargar algo inicial antes del primer evento RT:
+  try {
+    const initial = await dbAll();
+    allProcesses = Array.isArray(initial) ? initial : [];
+  } catch (e) {
+    console.log('dbAll inicial falló (es normal si aún no hay datos):', e);
   }
 
-  // Wire up import inputs
+  // Listeners de UI (import/export/overlay) permanecen igual
   document.getElementById('fileImportJSON')?.addEventListener('change', handleImportJSON);
   document.getElementById('fileImportExcel')?.addEventListener('change', handleImportExcel);
+  document.getElementById('modalOverlay')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
 
-  // Modal close on overlay click
-  document.getElementById('modalOverlay')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
-
+  // Enrutado inicial
   handleRoute();
 }
-
 init();
