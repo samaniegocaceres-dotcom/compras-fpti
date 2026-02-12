@@ -217,7 +217,7 @@ function showAutoSave(state) {
 // 5. ROUTING (hash-based)
 // ================================================================
 let currentPage = 1;
-//const PAGE_SIZE = 15; // Cambiá si querés más por página (ej.: 50 o 9999)
+const PAGE_SIZE = 15; // Cambiá si querés más por página (ej.: 50 o 9999)
 
 
 // 🔽🔽🔽 AÑADIR ESTAS 3 LÍNEAS 🔽🔽🔽
