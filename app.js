@@ -6,59 +6,58 @@
 
 // === Firebase Imports ===
 
+
 import { db } from './firebase.js';
-import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-let allProcesses = [];
-
-onValue(ref(db, 'procesos'), (snap) => {
+import {
+  ref, get, set, remove, onValue
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 
 
 // ================================================================
 // 1. DATA STORE (Firebase Realtime Database)
-// API COMPATIBLE con el resto de tu app (dbAll, dbPut, dbDel, dbClear)
 // ================================================================
-const STORE = 'procesos';      // conservamos tu nombre lógico
-let allProcesses = [];         // conservamos variable global
+const STORE = 'procesos';
+let allProcesses = [];
 
-// Obtiene TODOS los procesos (una sola vez)
+// Reemplazar caracteres inválidos en claves RTDB: . # $ [ ] /
+function safeKey(id) {
+  return String(id).replace(/[.#$\[\]\/]/g, '_');
+}
+
+// Leer todos (una vez)
 function dbAll() {
   return new Promise(async (ok, fail) => {
     try {
       const snap = await get(ref(db, STORE));
-      const obj = snap.val() || {};
-      // Convertimos diccionario => array
-      const list = Object.values(obj);
-      ok(list);
-    } catch (e) {
-      fail(e);
-    }
+      const obj  = snap.val() || {};
+      ok(Object.values(obj));
+    } catch (e) { fail(e); }
   });
 }
 
-// Inserta/Actualiza un proceso { id, ... }
+// Guardar / actualizar un proceso { id, ... }
 function dbPut(p) {
   return new Promise(async (ok, fail) => {
     try {
       if (!p?.id) throw new Error('dbPut: falta p.id');
-      await set(ref(db, `${STORE}/${p.id}`), p);
+      await set(ref(db, `${STORE}/${safeKey(p.id)}`), p);
       ok();
     } catch (e) { fail(e); }
   });
 }
 
-// Elimina un proceso por id
+// Borrar un proceso por id
 function dbDel(id) {
   return new Promise(async (ok, fail) => {
     try {
-      await remove(ref(db, `${STORE}/${id}`));
+      await remove(ref(db, `${STORE}/${safeKey(id)}`));
       ok();
     } catch (e) { fail(e); }
   });
 }
 
-// Borra TODO (usar con precaución: lo usa tu import para reemplazar datos)
+// Borrar TODO el nodo /procesos
 function dbClear() {
   return new Promise(async (ok, fail) => {
     try {
@@ -68,41 +67,35 @@ function dbClear() {
   });
 }
 
-// === Suscripción en tiempo real ===
-// Llama a renderIndex() o renderDetail() cuando cambia algo en Firebase
+// Suscripción en tiempo real
 function subscribeRealtime() {
   onValue(ref(db, STORE), (snap) => {
     const obj = snap.val() || {};
     allProcesses = Object.values(obj);
 
-    // Si estás en índice o detalle, re-renderizamos
-    try {
-      const h = window.location.hash || '#/';
-      if (h.startsWith('#/detail/')) {
-        const id = decodeURIComponent(h.replace('#/detail/', ''));
-        // Si el id ya no existe (lo borraron desde otra PC), volvemos al índice
-        if (!allProcesses.find(x => x.id === id)) {
-          navigate('#/');
-          renderIndex?.();
-          return;
-        }
-        renderDetail?.(id);
-      } else {
+    // DEBUG opcional:
+    // console.log('RT update →', allProcesses.length, 'procesos');
+
+    const h = window.location.hash || '#/';
+    if (h.startsWith('#/detail/')) {
+      const id = decodeURIComponent(h.replace('#/detail/', ''));
+      if (!allProcesses.find(x => x.id === id)) {
+        navigate('#/');
         renderIndex?.();
+      } else {
+        renderDetail?.(id);
       }
-    } catch (e) {
-      console.warn('Render tras RT update', e);
+    } else {
+      renderIndex?.();
     }
   });
 }
 
-// openDB ahora solo inicia la suscripción
+// openDB ahora inicia la suscripción
 function openDB() {
-  return new Promise((ok) => {
-    subscribeRealtime();
-    ok();
-  });
+  return new Promise((ok) => { subscribeRealtime(); ok(); });
 }
+
 
 
 // ================================================================
@@ -683,31 +676,22 @@ function closeSidebar() {
 window.toggleSidebar = toggleSidebar; window.closeSidebar = closeSidebar;
 
 
+
 // ================================================================
-// 12. INIT (versión Firebase)
+// 12. INIT (Firebase)
 // ================================================================
 async function init() {
-  // Suscripción en tiempo real
-  await openDB();
+  await openDB(); // activa suscripción RT
 
-  // Ya no hacemos seed desde ./data/data.json
-  // dbAll() no es imprescindible aquí porque onValue ya actualizará allProcesses,
-  // pero si querés cargar algo inicial antes del primer evento RT:
-  try {
-    const initial = await dbAll();
-    allProcesses = Array.isArray(initial) ? initial : [];
-  } catch (e) {
-    console.log('dbAll inicial falló (es normal si aún no hay datos):', e);
-  }
+  // Carga “por única vez” (opcional: onValue ya llena allProcesses)
+  try { allProcesses = await dbAll(); } catch {}
 
-  // Listeners de UI (import/export/overlay) permanecen igual
-  document.getElementById('fileImportJSON')?.addEventListener('change', handleImportJSON);
+  // Listeners de UI (asegurate que existan estos inputs/botones en tu HTML)
+  document.getElementById('fileImportJSON') ?.addEventListener('change', handleImportJSON);
   document.getElementById('fileImportExcel')?.addEventListener('change', handleImportExcel);
-  document.getElementById('modalOverlay')?.addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeModal();
-  });
+  document.getElementById('modalOverlay')   ?.addEventListener('click', e => { if (e.target===e.currentTarget) closeModal(); });
 
-  // Enrutado inicial
   handleRoute();
 }
 init();
+
