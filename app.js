@@ -218,6 +218,18 @@ function showAutoSave(state) {
 // ================================================================
 let currentPage = 1;
 const PAGE_SIZE = 15; // Cambiá si querés más por página (ej.: 50 o 9999)
+
+
+// 🔽🔽🔽 AÑADIR ESTAS 3 LÍNEAS 🔽🔽🔽
+// Expone currentPage al ámbito global y lo mantiene sincronizado.
+// Así el HTML (onclick="currentPage=…") funciona en scripts tipo módulo.
+Object.defineProperty(window, 'currentPage', {
+  get() { return currentPage; },
+  set(v) { currentPage = Math.max(1, Number(v) || 1); }
+});
+``
+
+
 let sortField = 'proceso';
 let sortDir = 'asc';
 function navigate(hash) { window.location.hash = hash; }
