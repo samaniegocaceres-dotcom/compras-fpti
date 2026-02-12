@@ -217,7 +217,7 @@ function showAutoSave(state) {
 // 5. ROUTING (hash-based)
 // ================================================================
 let currentPage = 1;
-const PAGE_SIZE = 15; // Cambiá si querés más por página (ej.: 50 o 9999)
+const PAGE_SIZE = 16; // Cambiá si querés más por página (ej.: 50 o 9999)
 
 
 // 🔽🔽🔽 AÑADIR ESTAS 3 LÍNEAS 🔽🔽🔽
@@ -227,7 +227,7 @@ Object.defineProperty(window, 'currentPage', {
   get() { return currentPage; },
   set(v) { currentPage = Math.max(1, Number(v) || 1); }
 });
-``
+
 
 
 let sortField = 'proceso';
