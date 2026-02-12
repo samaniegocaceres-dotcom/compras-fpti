@@ -5,12 +5,14 @@
    ================================================================ */
 
 // === Firebase Imports ===
-import { db } from './firebase.js';
-import {
-  ref, get, set, remove, update, onValue, child
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-'use strict';
+import { db } from './firebase.js';
+import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+let allProcesses = [];
+
+onValue(ref(db, 'procesos'), (snap) => {
+
 
 
 // ================================================================
