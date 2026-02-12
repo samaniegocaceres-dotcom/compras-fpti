@@ -21,9 +21,12 @@ const STORE = 'procesos';
 let allProcesses = [];
 
 // Reemplazar caracteres inválidos en claves RTDB: . # $ [ ] /
+
 function safeKey(id) {
-  return String(id).replace(/[.#$\[\]\/]/g, '_');
+  return String(id).replace(/[.#$[\]\/]/g, '_');
 }
+
+
 
 // Leer todos (una vez)
 function dbAll() {
